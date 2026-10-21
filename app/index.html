@@ -6,13 +6,20 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Ambient glow in the colour of the focused dock app; two layers so colours crossfade. -->
+
+  <!-- Full-screen cinematic wallpaper -->
+  <div id="wallpaper">
+    <img id="wallpaperImg" src="assets/wallpaper.jpg?v=5" alt="" />
+  </div>
+
+  <!-- Gradient overlay: darkens top (header) and bottom (dock) for readability -->
+  <div id="overlay"></div>
+
+  <!-- Ambient colour glow — two layers crossfade for smooth colour transitions -->
   <div id="ambientA" class="ambient"></div>
   <div id="ambientB" class="ambient"></div>
 
-  <!-- Top shelf: the focused dock app's name, above the dock. -->
-  <div id="hero"></div>
-
+  <!-- ── Header ── clock/date left · pill buttons right ──────────────────── -->
   <header>
     <div id="leftBlock">
       <div id="greeting"></div>
@@ -36,7 +43,10 @@
     </div>
   </header>
 
-  <!-- Everything below the header scrolls together: dock band, tiles and the glass highlight. -->
+  <!-- Selected dock-app name — appears above the dock, fades when scrolled into grid -->
+  <div id="hero"></div>
+
+  <!-- Scrollable stage: glass-morphic dock band · tile grid · focus glass ring -->
   <div id="viewport">
     <div id="stage">
       <div id="dockBand"></div>
@@ -45,9 +55,10 @@
     </div>
   </div>
 
-  <!-- Dropdown under the Inputs pill. -->
+  <!-- HDMI / Live-TV dropdown -->
   <div id="inputsPanel" class="hidden"></div>
 
+  <!-- Ephemeral toast message -->
   <div id="toast"></div>
 
   <script src="config.js"></script>

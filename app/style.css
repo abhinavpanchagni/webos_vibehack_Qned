@@ -1,4 +1,9 @@
-/* Sizes are the Android launcher's dp values doubled: webOS renders web apps at 1920x1080. */
+/* ============================================================
+   webos-vibehack — Premium UI  (Apple TV-inspired redesign)
+   Fixed 1920 × 1080 px canvas — LG webOS 25
+   ============================================================ */
+
+/* ── Font ─────────────────────────────────────────────────── */
 
 @font-face {
   font-family: 'Outfit';
@@ -6,316 +11,465 @@
   font-weight: 100 900;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   width: 1920px;
   height: 1080px;
   overflow: hidden;
-  background: #000;
+  background: #07080a;
   color: #fff;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   cursor: default;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ---- ambient glow ---------------------------------------------------------------------------- */
+/* ── Cinematic wallpaper ──────────────────────────────────── */
+
+#wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #07070a;
+  overflow: hidden;
+  will-change: opacity;
+  animation: wpFadeIn 600ms ease-out both;
+}
+
+#wallpaper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes wpFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Gradient overlay ─────────────────────────────────────── */
+/*  Top band: subtle darkening for header legibility            */
+/*  Centre: clear for wallpaper glow                            */
+/*  Bottom: gentle darkening for dock contrast                  */
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.28)  0%,
+      rgba(0, 0, 0, 0.00) 22%,
+      rgba(0, 0, 0, 0.00) 65%,
+      rgba(0, 0, 0, 0.18) 100%
+    );
+}
+
+/* ── Ambient colour glow ──────────────────────────────────── */
 
 .ambient {
   position: absolute;
   inset: 0;
+  z-index: 2;
   opacity: 0;
-  transition: opacity 600ms ease;
   pointer-events: none;
+  transition: opacity 700ms ease;
 }
 
-/* ---- top shelf ------------------------------------------------------------------------------- */
-
-#hero {
-  position: absolute;
-  left: 136px;
-  font-size: 96px;
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 260ms ease, transform 200ms ease;
-  pointer-events: none;
-}
-
-/* ---- header ---------------------------------------------------------------------------------- */
+/* ── Header ───────────────────────────────────────────────── */
 
 header {
   position: absolute;
-  top: 52px;
-  left: 112px;
-  right: 112px;
+  top: 58px;
+  left: 116px;
+  right: 116px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  z-index: 3;
-  transition: opacity 300ms ease, transform 360ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  align-items: flex-start;
+  z-index: 10;
+  /* entrance animation — fires once on load */
+  animation: hdrIn 560ms cubic-bezier(0.25, 0.8, 0.3, 1) 120ms both;
+  /* scroll-hide transition — controlled by body.scrolled */
+  transition: opacity 300ms ease, transform 380ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
-/* Below the dock: the header slides away so the grid gets the whole screen. */
+@keyframes hdrIn {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
 body.scrolled header {
   opacity: 0;
-  transform: translateY(-48px);
+  transform: translateY(-44px);
   pointer-events: none;
 }
 
+/* ── Greeting ─────────────────────────────────────────────── */
+
 #greeting {
-  margin-left: 8px;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 500;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin-left: 4px;
+  margin-bottom: 6px;
 }
 
-#timeRow { display: flex; align-items: flex-end; }
+/* ── Time row: clock · am/pm · divider · date ────────────── */
 
-#clock {
-  font-size: 104px;
-  font-weight: 300;
-  letter-spacing: -0.04em;
+#timeRow {
+  display: flex;
+  align-items: baseline;
   line-height: 1;
 }
 
+#clock {
+  font-size: 88px;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+  color: #fff;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.5);
+}
+
 #ampm {
-  margin: 0 0 16px 12px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 30px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 26px 0 10px;
 }
 
 .divider {
-  width: 2px;
-  height: 52px;
-  margin: 0 32px 16px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 1px;
+  height: 32px;
+  margin: 0 26px 0 0;
+  background: rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+  transform: translateY(-4px);
 }
 
 #date {
-  margin-bottom: 18px;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+  transform: translateY(-4px);
   white-space: pre;
 }
 
-#topButtons { display: flex; margin-bottom: 12px; }
+/* ── Pill buttons ─────────────────────────────────────────── */
 
-/* Frosted pill, tvOS style. */
+#topButtons { display: flex; gap: 16px; padding-top: 4px; }
+
 .pill {
   display: flex;
   align-items: center;
-  height: 84px;
-  margin-left: 20px;
-  padding: 0 40px 0 32px;
-  border-radius: 42px;
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
-  color: #fff;
-  font-size: 30px;
-  font-weight: 500;
+  height: 80px;
+  padding: 0 30px 0 24px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(28, 28, 34, 0.65);
+  /* backdrop blur — graceful no-op if unsupported on webOS */
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: rgba(255, 255, 255, 0.90);
+  font-size: 26px;
+  font-weight: 400;
   letter-spacing: 0.01em;
   white-space: nowrap;
-  transition: background 160ms ease, color 160ms ease, transform 200ms ease;
+  transition:
+    background 160ms ease,
+    color      160ms ease,
+    border-color 160ms ease,
+    transform  200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.pill svg { width: 44px; height: 44px; margin-right: 18px; fill: currentColor; }
+.pill svg {
+  width: 32px;
+  height: 32px;
+  margin-right: 14px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
 
 .pill.focused {
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border-color: transparent;
   color: #000;
-  transform: scale(1.04);
+  transform: scale(1.05);
 }
 
-/* ---- grid ------------------------------------------------------------------------------------ */
+/* ── Hero — selected dock-app name ───────────────────────── */
+
+#hero {
+  position: absolute;
+  left: 204px;
+  font-size: 56px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  white-space: nowrap;
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.70);
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+
+/* ── Scrollable stage ─────────────────────────────────────── */
 
 #viewport {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  z-index: 5;
 }
 
 #stage {
   position: absolute;
   inset: 0;
-  transition: transform 420ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  transition: transform 430ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
-/* The tvOS lighter band behind the dock row. */
+/* ── Glassmorphic dock band (hidden for floating icon style) ─ */
+
 #dockBand {
-  position: absolute;
-  border-radius: 52px;
-  background: #141416;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  display: none !important;
 }
+
+/* ── App tiles ────────────────────────────────────────────── */
 
 .item {
   position: absolute;
-  width: 360px;
+  width: 340px;
+  height: 200px;
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 400ms ease, transform 400ms cubic-bezier(0.2, 0.8, 0.3, 1),
-    left 320ms cubic-bezier(0.25, 0.8, 0.3, 1), top 320ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  transform: translateY(18px);
+  transition:
+    opacity  360ms ease,
+    transform 360ms cubic-bezier(0.2, 0.85, 0.3, 1),
+    left 300ms cubic-bezier(0.25, 0.8, 0.3, 1),
+    top  300ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
 .item.shown { opacity: 1; transform: none; }
 
+/* Dock row — name label is replaced by the hero text */
 .item.dock .name { display: none; }
 
-/* Rearranging: the held tile wiggles and floats above the others; the glass steps aside. */
-.item.moving { z-index: 2; }
-
-.item.moving .card {
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
-  animation: wiggle 240ms ease-in-out infinite alternate;
-}
-
-@keyframes wiggle {
-  from { transform: scale(1.1) rotate(-1.2deg); }
-  to { transform: scale(1.1) rotate(1.2deg); }
-}
-
-body.editing #glass { opacity: 0 !important; }
+/* ── Card (floating icon tile) ────────────────────────────── */
 
 .card {
   position: relative;
-  width: 360px;
-  height: 202px;
-  border-radius: 32px;
+  width: 340px;
+  height: 200px;
+  border-radius: 30px;
   overflow: hidden;
-  background: #1c1c1e;
-  transition: transform 180ms ease;
+  background: #18181e;
+  /* Floating drop shadow */
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.45),
+    0  4px 12px rgba(0, 0, 0, 0.25);
+  transition:
+    transform  240ms cubic-bezier(0.34, 1.40, 0.60, 1),
+    box-shadow 240ms ease;
 }
 
-/* Faint rim so black tiles (Apple TV) still read against the black page. */
+/* Subtle inner rim so black icons read against wallpaper */
 .card::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 32px;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
 }
 
+/* Focus: floats upward and scales with high-end glow */
 .item.focused .card {
-  transform: scale(1.1);
-  transition: transform 260ms cubic-bezier(0.34, 1.6, 0.5, 1);
+  transform: scale(1.10);
+  box-shadow:
+    0 26px 56px rgba(0, 0, 0, 0.60),
+    0  6px 18px rgba(0, 0, 0, 0.35);
+  transition:
+    transform  260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 260ms ease;
 }
 
+/* App icon — centered with neat padding so logos breathe and never touch the edges */
 .card img {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  height: 100%;
-  transform: translateX(-50%);
+  height: 70%;
+  width: auto;
+  max-width: 80%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  will-change: transform;
 }
 
-/* Transparent system icons: smaller glyph, centred. */
-.card.glyph img {
-  top: 50%;
-  height: 62%;
-  transform: translate(-50%, -50%);
+/* Transparent glyph icons (system apps) */
+.card.glyph {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
+
+.card.glyph img {
+  height: 54%;
+  max-width: 54%;
+}
+
+/* ── App name label (grid rows only) ─────────────────────── */
 
 .name {
-  height: 44px;
+  height: 42px;
   margin-top: 14px;
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 28px;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 25px;
+  font-weight: 400;
   letter-spacing: 0.02em;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   opacity: 0;
-  transform: translateY(-12px);
-  transition: opacity 220ms ease, transform 220ms ease;
+  transform: translateY(-8px);
+  transition: opacity 200ms ease, transform 200ms ease;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.65);
 }
 
-.item.focused .name { opacity: 1; transform: translateY(8px); }
+.item.focused .name { opacity: 1; transform: translateY(6px); }
 
-/* The single floating glass highlight that springs between tiles. */
+/* ── Tile rearranging ─────────────────────────────────────── */
+
+.item.moving { z-index: 20; }
+
+.item.moving .card {
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.70);
+  animation: wiggle 250ms ease-in-out infinite alternate;
+}
+
+@keyframes wiggle {
+  from { transform: scale(1.1) rotate(-1.6deg); }
+  to   { transform: scale(1.1) rotate( 1.6deg); }
+}
+
+body.editing #glass { opacity: 0 !important; }
+
+/* ── Floating glass focus ring ────────────────────────────── */
+
 #glass {
   position: absolute;
   left: 0;
   top: 0;
-  border-radius: 47px;
-  border: 3px solid rgba(255, 255, 255, 0.8);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.07));
-  box-shadow: 0 0 4px 2px rgba(255, 255, 255, 0.19), 0 0 12px 4px rgba(255, 255, 255, 0.08);
+  border-radius: 44px;
+  border: 3.5px solid rgba(255, 255, 255, 0.88);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22)  0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.30),
+    0 14px 44px rgba(0, 0, 0, 0.50);
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms ease, transform 520ms cubic-bezier(0.3, 1.35, 0.45, 1);
+  /* spring transition — the ring "throws" to the next tile */
+  transition: opacity 180ms ease, transform 500ms cubic-bezier(0.25, 1.40, 0.38, 1);
 }
 
-/* Bright top specular. */
+/* Top specular highlight inside the glass ring */
 #glass::before {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 45%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
+  left: 0; right: 0; top: 0;
+  height: 44%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 44px 44px 0 0;
+  pointer-events: none;
 }
 
-/* ---- inputs dropdown ------------------------------------------------------------------------- */
+/* ── Inputs dropdown panel ────────────────────────────────── */
 
 #inputsPanel {
   position: absolute;
-  z-index: 5;
-  padding: 16px;
-  border-radius: 40px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(180deg, rgba(42, 42, 46, 0.95), rgba(22, 22, 24, 0.96));
-  transform-origin: top;
-  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  z-index: 20;
+  padding: 10px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(12, 12, 18, 0.92);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.60);
+  transform-origin: top left;
+  transition: opacity 200ms ease, transform 220ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
-#inputsPanel.hidden { opacity: 0; transform: translateY(-16px) scaleY(0.92); pointer-events: none; }
+#inputsPanel.hidden {
+  opacity: 0;
+  transform: translateY(-12px) scaleY(0.93);
+  pointer-events: none;
+}
 
 .inputRow {
   display: flex;
   align-items: center;
-  height: 84px;
-  padding: 0 24px;
-  border-radius: 24px;
-  font-size: 30px;
-  font-weight: 500;
+  height: 78px;
+  padding: 0 26px;
+  border-radius: 22px;
+  font-size: 27px;
+  font-weight: 400;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.86);
+  transition: background 150ms ease, color 150ms ease;
 }
 
-.inputRow svg { width: 40px; height: 40px; margin-right: 20px; fill: currentColor; }
+.inputRow svg { width: 36px; height: 36px; margin-right: 18px; fill: currentColor; }
 
-.inputRow.focused { background: rgba(255, 255, 255, 0.96); color: #000; }
+.inputRow.focused { background: rgba(255, 255, 255, 0.94); color: #000; }
 
-.separator { height: 2px; margin: 12px 24px; background: rgba(255, 255, 255, 0.12); }
+.separator { height: 1px; margin: 8px 26px; background: rgba(255, 255, 255, 0.09); }
 
-/* ---- toast ----------------------------------------------------------------------------------- */
+/* ── Toast ────────────────────────────────────────────────── */
 
 #toast {
   position: absolute;
   left: 50%;
-  bottom: 80px;
-  padding: 20px 40px;
-  border-radius: 40px;
-  background: rgba(40, 40, 44, 0.95);
-  font-size: 28px;
+  bottom: 68px;
+  padding: 18px 46px;
+  border-radius: 34px;
+  background: rgba(16, 16, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  font-size: 25px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.90);
   opacity: 0;
   transform: translateX(-50%);
   transition: opacity 200ms ease;
-  z-index: 6;
+  z-index: 30;
+  pointer-events: none;
 }
 
 #toast.shown { opacity: 1; }
+
+/* ── Reduced motion ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

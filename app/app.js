@@ -8,14 +8,17 @@
   'use strict';
 
   var COLUMNS = Math.max(1, CONFIG.columns || 4);
-  var TILE_W = 360, TILE_H = 202;
-  var CELL_W = (1920 - 2 * 112) / COLUMNS;
-  var ROW_PITCH = 292;
-  var DOCK_TOP = 708;           // tile top of the dock row: next row peeks in at the bottom
-  var DOCK_GAP = 36;            // extra space below the dock
-  var FOCUS_SCALE = 1.1;
-  var GLASS_PAD = 12;           // room for the glass glow around the scaled tile
-  var VIEW_TOP = 80, VIEW_BOTTOM = 1060;    // area grid rows scroll into (the header hides below the dock)
+  var TILE_W = 340, TILE_H = 200;   // neat 16:9 floating cards
+  var GAP_X = 56;                // neat, consistent gap between cards
+  var ROW_PITCH = 280;           // vertical spacing between grid rows
+  var DOCK_TOP = 718;            // tile top of the dock row
+  var DOCK_GAP = 36;
+  var FOCUS_SCALE = 1.10;
+  var GLASS_PAD = 12;            // room around the scaled tile for the glass ring
+  var VIEW_TOP = 80, VIEW_BOTTOM = 1060;
+
+  var TOTAL_ROW_W = COLUMNS * TILE_W + (COLUMNS - 1) * GAP_X;
+  var ROW_START_X = Math.round((1920 - TOTAL_ROW_W) / 2);
 
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13, BACK: 461, ESC: 27 };
 
@@ -38,6 +41,7 @@
   var focused = 0, pillFocus = 0, inputFocus = 0, inputRows = [];
   var offset = 0, heroShown = false, glassShown = false;
   var editing = null;           // {item, snapshot} while a tile is being moved
+  var hasResumed = false;       // true after first resume — reduces stagger on return
 
   // ---- luna bus ------------------------------------------------------------------------------
 
@@ -124,7 +128,7 @@
   }
 
   function rowOf(i) { return Math.floor(i / COLUMNS); }
-  function tileLeft(i) { return 112 + (i % COLUMNS) * CELL_W + (CELL_W - TILE_W) / 2; }
+  function tileLeft(i) { return ROW_START_X + (i % COLUMNS) * (TILE_W + GAP_X); }
   function tileTop(i) { var r = rowOf(i); return DOCK_TOP + r * ROW_PITCH + (r > 0 ? DOCK_GAP : 0); }
 
   function build() {
@@ -166,18 +170,18 @@
     });
 
     var band = $('dockBand');
-    var n = Math.min(COLUMNS, items.length);
-    band.style.display = n ? 'block' : 'none';
-    band.style.left = (tileLeft(0) - 28) + 'px';
-    band.style.top = (DOCK_TOP - 28) + 'px';
-    band.style.width = ((n - 1) * CELL_W + TILE_W + 56) + 'px';
-    band.style.height = (TILE_H + 56) + 'px';
+    if (band) band.style.display = 'none';
   }
 
   function animateIn() {
+    // Initial open: generous stagger for a cinematic entrance.
+    // Resume (returning from an app): faster stagger so it feels snappy.
+    var delay  = hasResumed ? 28 : 56;
+    var step   = hasResumed ? 22 : 36;
+    var maxIdx = hasResumed ?  8 : 14;
     items.forEach(function (it, i) {
       it.el.classList.remove('shown');
-      setTimeout(function () { it.el.classList.add('shown'); }, 60 + Math.min(i, 16) * 40);
+      setTimeout(function () { it.el.classList.add('shown'); }, delay + Math.min(i, maxIdx) * step);
     });
   }
 
@@ -201,8 +205,13 @@
       item.card.style.background = 'rgb(' + edge[0] + ',' + edge[1] + ',' + edge[2] + ')';
     } else {
       item.card.classList.add('glyph');
-      item.card.style.background = glyphBackground(item.app.iconColor);
-      glyphColor = glyphBackground(item.app.iconColor) === '#2c2c2e' ? null : parseColor(item.app.iconColor);
+      var c = parseColor(item.app.iconColor);
+      if (c) {
+        item.card.style.background = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ', 0.35)';
+        glyphColor = c;
+      } else {
+        item.card.style.background = 'rgba(255, 255, 255, 0.14)';
+      }
     }
     // A white glyph says nothing about the app: glow in the tile's colour instead.
     item.color = glyphColor || (px ? vividColor(px) : parseColor(item.app.iconColor));
@@ -336,25 +345,26 @@
 
   function showHero(item) {
     var label = item.app.title;
-    hero.style.top = (DOCK_TOP - 28 - 52 - 96) + 'px';
+    hero.style.top = (DOCK_TOP - 78) + 'px';   // sits cleanly right above the floating dock row
+    hero.style.left = tileLeft(0) + 'px';
     if (!heroShown) {
       hero.textContent = label;
-      hero.style.transform = 'none';
+      hero.style.transform = 'translateY(0)';
       hero.style.opacity = '1';
       heroShown = true;
     } else if (hero.textContent !== label) {
       hero.style.opacity = '0';
-      hero.style.transform = 'translateX(-24px)';
+      hero.style.transform = 'translateY(-8px)';
       clearTimeout(hero.swap);
       hero.swap = setTimeout(function () {
         hero.textContent = label;
         hero.style.transition = 'none';
-        hero.style.transform = 'translateX(24px)';
+        hero.style.transform = 'translateY(8px)';
         hero.offsetWidth;
         hero.style.transition = '';
-        hero.style.transform = 'none';
+        hero.style.transform = 'translateY(0)';
         hero.style.opacity = '1';
-      }, 120);
+      }, 110);
     }
     setAmbient(item.color);
   }
@@ -372,8 +382,12 @@
     if (key === ambientColor) return;
     ambientColor = key;
     var back = ambients[1 - ambientFront];
-    back.style.background = 'radial-gradient(circle 1190px at 32% 42%, rgba(' + key + ',0.36) 0%, rgba(' +
-      key + ',0.15) 50%, rgba(' + key + ',0) 100%)';
+    // Glow emanates from behind the dock (bottom-centre) and spills upward.
+    back.style.background =
+      'radial-gradient(ellipse 1400px 860px at 50% 92%, ' +
+        'rgba(' + key + ',0.30) 0%, ' +
+        'rgba(' + key + ',0.11) 52%, ' +
+        'rgba(' + key + ',0.00) 100%)';
     back.style.opacity = '1';
     ambients[ambientFront].style.opacity = '0';
     ambientFront = 1 - ambientFront;
@@ -597,6 +611,7 @@
     zone = 'none';
     animateIn();
     focusTile(focused);
+    hasResumed = true;
   }
 
   document.addEventListener('webOSRelaunch', resume);

@@ -362,6 +362,23 @@ if (-not $ipk) {
 }
 Write-Ok "Package: $($ipk.Name)"
 
+# ---- close running instance on TV --------------------------------------------------------------
+
+Write-Header "Checking if launcher is currently running on TV"
+$runningApps = ""
+if (Get-Command "ares-launch" -ErrorAction SilentlyContinue) {
+    $runningApps = & ares-launch -d $Device -r
+} else {
+    $runningApps = npx -y -p @webos-tools/cli ares-launch -d $Device -r
+}
+
+if ($runningApps -match [regex]::Escape($APP_ID)) {
+    Write-Info "Launcher is currently running - closing it for a fresh reload..."
+    Invoke-Ares "launch" -AresArgs @("-d", $Device, "-c", $APP_ID)
+} else {
+    Write-Info "Launcher is not currently running."
+}
+
 # ---- install on TV -----------------------------------------------------------------------------
 
 Write-Header "Installing on TV (ares-install)"
