@@ -464,6 +464,333 @@ body.editing #glass { opacity: 0 !important; }
 
 #toast.shown { opacity: 1; }
 
+/* ── Cinematic Favourite Characters Gallery ────────────────── */
+
+#characterGallery {
+  position: absolute;
+  top: 130px;
+  left: 0;
+  width: 1920px;
+  height: 540px;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+  animation: charGalleryIn 600ms cubic-bezier(0.25, 0.8, 0.3, 1) 180ms both;
+  transition: opacity 300ms ease, transform 380ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+
+@keyframes charGalleryIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+body.scrolled #characterGallery {
+  opacity: 0;
+  transform: translateY(-40px);
+  pointer-events: none;
+}
+
+#characterStage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 36px;
+  width: 1550px;
+  pointer-events: auto;
+}
+
+/* ── Individual Character Item ────────────────────────────── */
+
+.char-item {
+  position: relative;
+  width: 270px;
+  height: 510px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  transform-origin: bottom center;
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.36, 0.64, 1),
+    opacity 280ms ease,
+    filter 280ms ease;
+  opacity: 0.82;
+  filter: saturate(0.96);
+  user-select: none;
+}
+
+/* Couple items have slightly wider presence for two persons */
+.char-item[data-id="benjamin"],
+.char-item[data-id="hannah"] {
+  width: 296px;
+}
+
+/* Dim other characters when gallery is focused */
+body.in-characters .char-item:not(.focused) {
+  opacity: 0.45;
+  filter: saturate(0.85) brightness(0.88);
+  transform: scale(0.97);
+}
+
+/* Focused Character */
+.char-item.focused {
+  opacity: 1.0;
+  filter: saturate(1.15) brightness(1.06);
+  transform: scale(1.07) translateY(-12px);
+  z-index: 10;
+}
+
+/* ── Character Cutout Figure ──────────────────────────────── */
+
+.char-cutout-wrap {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+}
+
+.char-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.65));
+  transition: filter 280ms ease;
+}
+
+.char-item.focused .char-img {
+  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.75));
+}
+
+/* Subtle bottom feather so cutout blends smoothly above dock */
+.char-bottom-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(7, 8, 10, 0.75) 100%);
+  pointer-events: none;
+}
+
+/* ── Ambient Character Glow Behind Figure ──────────────────── */
+
+.char-glow {
+  position: absolute;
+  top: 50px;
+  left: -20px;
+  right: -20px;
+  bottom: 40px;
+  border-radius: 50%;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.88);
+  transition:
+    opacity 300ms ease,
+    transform 320ms cubic-bezier(0.25, 0.8, 0.3, 1),
+    filter 300ms ease;
+  filter: blur(28px);
+}
+
+.char-item.focused .char-glow {
+  opacity: 0.88;
+  transform: scale(1.15);
+  filter: blur(34px);
+}
+
+/* Character Specific Glow Themes */
+.char-item[data-id="steve"] .char-glow {
+  background: radial-gradient(ellipse at 50% 55%, rgba(229, 9, 20, 0.75) 0%, rgba(229, 9, 20, 0.28) 45%, rgba(0, 0, 0, 0) 70%);
+}
+
+.char-item[data-id="rengoku"] .char-glow {
+  background: radial-gradient(ellipse at 50% 55%, rgba(255, 107, 0, 0.80) 0%, rgba(255, 174, 0, 0.35) 45%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Rengoku Flame Pulse Animation */
+.char-item[data-id="rengoku"].focused .char-glow {
+  animation: flameGlow 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes flameGlow {
+  0% {
+    transform: scale(1.12);
+    opacity: 0.82;
+    filter: blur(30px);
+  }
+  50% {
+    transform: scale(1.19) translateY(-4px);
+    opacity: 0.98;
+    filter: blur(36px);
+  }
+  100% {
+    transform: scale(1.14);
+    opacity: 0.88;
+    filter: blur(32px);
+  }
+}
+
+.char-item[data-id="joe"] .char-glow {
+  background: radial-gradient(ellipse at 50% 55%, rgba(139, 0, 0, 0.80) 0%, rgba(178, 34, 34, 0.30) 45%, rgba(0, 0, 0, 0) 70%);
+}
+
+.char-item[data-id="benjamin"] .char-glow {
+  background: radial-gradient(ellipse at 50% 55%, rgba(212, 175, 55, 0.75) 0%, rgba(229, 193, 88, 0.28) 48%, rgba(0, 0, 0, 0) 70%);
+}
+
+.char-item[data-id="hannah"] .char-glow {
+  background: radial-gradient(ellipse at 50% 55%, rgba(199, 21, 133, 0.75) 0%, rgba(153, 50, 204, 0.28) 48%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* ── OTT Platform Brand Badge ─────────────────────────────── */
+
+.char-badge-wrap {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 240ms ease,
+    transform 260ms cubic-bezier(0.25, 1.25, 0.5, 1);
+  white-space: nowrap;
+}
+
+.char-item.focused .char-badge-wrap {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-6px);
+}
+
+.ott-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.ott-badge.netflix {
+  background: rgba(16, 16, 22, 0.88);
+  border: 1px solid rgba(229, 9, 20, 0.55);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(229, 9, 20, 0.35), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.ott-badge.netflix svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ott-badge.amazon {
+  background: rgba(12, 18, 28, 0.88);
+  border: 1px solid rgba(0, 168, 225, 0.55);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 168, 225, 0.35), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.ott-badge.amazon svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ── Character Title & Subtitle Info ──────────────────────── */
+
+.char-info {
+  position: absolute;
+  bottom: 0;
+  left: -20px;
+  right: -20px;
+  text-align: center;
+  z-index: 4;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 220ms ease,
+    transform 240ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  pointer-events: none;
+}
+
+.char-item.focused .char-info {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.char-name {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.char-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 3px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+}
+
+.char-meta .char-dot {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* ── Character Selection Launch Transition ────────────────── */
+
+body.char-launching #overlay {
+  background: rgba(0, 0, 0, 0.72) !important;
+  transition: background 420ms ease;
+}
+
+.char-item.launching {
+  transform: scale(1.15) translateY(-20px) !important;
+  transition: transform 420ms cubic-bezier(0.2, 1.2, 0.4, 1) !important;
+}
+
+.char-item.launching .char-badge-wrap {
+  transform: translateX(-50%) translateY(-12px) scale(1.18) !important;
+  transition: transform 420ms cubic-bezier(0.2, 1.2, 0.4, 1) !important;
+}
+
+.char-item.launching .char-glow {
+  transform: scale(1.35) !important;
+  opacity: 1.0 !important;
+  transition: transform 420ms ease, opacity 420ms ease !important;
+}
+
+/* When in characters zone, hide the app grid focus glass ring */
+body.in-characters #glass {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 /* ── Reduced motion ───────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

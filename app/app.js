@@ -37,11 +37,16 @@
   var panel = $('inputsPanel');
 
   var items = [];               // {app, el, color}
-  var zone = 'grid';            // 'grid' | 'top' | 'inputs'
+  var zone = 'grid';            // 'grid' | 'characters' | 'top' | 'inputs'
   var focused = 0, pillFocus = 0, inputFocus = 0, inputRows = [];
   var offset = 0, heroShown = false, glassShown = false;
   var editing = null;           // {item, snapshot} while a tile is being moved
   var hasResumed = false;       // true after first resume — reduces stagger on return
+
+  var characters = (window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.characters) || [];
+  var charItems = [];
+  var charFocus = 0;
+  var isLaunchingChar = false;
 
   // ---- luna bus ------------------------------------------------------------------------------
 
@@ -159,6 +164,7 @@
       return item;
     });
     layout();
+    buildCharacters();
   }
 
   /** Places every tile by its position in items; tiles glide when the order changes. */
@@ -171,6 +177,156 @@
 
     var band = $('dockBand');
     if (band) band.style.display = 'none';
+  }
+
+  // ---- favourite characters gallery ----------------------------------------------------------
+
+  function buildCharacters() {
+    var stage = $('characterStage');
+    if (!stage) return;
+    stage.innerHTML = '';
+    charItems = [];
+    if (!window.CHARACTERS_CONFIG || !CHARACTERS_CONFIG.enabled || !characters.length) {
+      var gal = $('characterGallery');
+      if (gal) gal.style.display = 'none';
+      return;
+    }
+
+    characters.forEach(function (c, idx) {
+      var item = document.createElement('div');
+      item.className = 'char-item';
+      item.dataset.id = c.id;
+
+      // 1. OTT Brand Badge
+      var badgeWrap = document.createElement('div');
+      badgeWrap.className = 'char-badge-wrap';
+      var badge = document.createElement('div');
+      badge.className = 'ott-badge ' + (c.badgeType || 'netflix');
+
+      if (c.badgeType === 'amazon') {
+        badge.innerHTML =
+          '<svg viewBox="0 0 24 24"><path fill="#00A8E1" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>' +
+          '<span>Prime Video</span>';
+      } else {
+        badge.innerHTML =
+          '<svg viewBox="0 0 24 24"><path fill="#E50914" d="M4 2v20h3.5v-8.5l9 8.5H20V2h-3.5v8.5L7.5 2z"/></svg>' +
+          '<span>Netflix</span>';
+      }
+      badgeWrap.appendChild(badge);
+      item.appendChild(badgeWrap);
+
+      // 2. Ambient Glow behind character
+      var glow = document.createElement('div');
+      glow.className = 'char-glow';
+      if (c.glowGradient) glow.style.background = c.glowGradient;
+      item.appendChild(glow);
+
+      // 3. Cutout figure wrapper
+      var cutoutWrap = document.createElement('div');
+      cutoutWrap.className = 'char-cutout-wrap';
+      var img = document.createElement('img');
+      img.className = 'char-img';
+      img.src = c.image;
+      img.alt = c.character;
+      img.loading = 'eager';
+      cutoutWrap.appendChild(img);
+
+      var bottomFade = document.createElement('div');
+      bottomFade.className = 'char-bottom-fade';
+      cutoutWrap.appendChild(bottomFade);
+      item.appendChild(cutoutWrap);
+
+      // 4. Character info banner
+      var info = document.createElement('div');
+      info.className = 'char-info';
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'char-name';
+      nameEl.textContent = c.character;
+      info.appendChild(nameEl);
+
+      var metaEl = document.createElement('div');
+      metaEl.className = 'char-meta';
+      metaEl.innerHTML =
+        '<span class="char-title">' + c.title + '</span>' +
+        '<span class="char-dot">•</span>' +
+        '<span class="char-category">' + (c.category || c.platformName) + '</span>';
+      info.appendChild(metaEl);
+
+      item.appendChild(info);
+
+      // Mouse / pointer listeners for LG Magic Remote
+      item.addEventListener('mouseover', function () {
+        if (!isLaunchingChar && zone !== 'inputs' && !editing) {
+          focusCharacter(idx);
+        }
+      });
+
+      item.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!isLaunchingChar && !editing) {
+          selectCharacter(idx);
+        }
+      });
+
+      stage.appendChild(item);
+      charItems.push(item);
+    });
+  }
+
+  function focusCharacter(idx) {
+    if (!characters.length) return;
+    idx = Math.max(0, Math.min(idx, characters.length - 1));
+    charFocus = idx;
+    setZone('characters');
+
+    charItems.forEach(function (el, i) {
+      el.classList.toggle('focused', i === idx);
+    });
+
+    var c = characters[idx];
+    if (c) {
+      setAmbient(parseColor(c.glowColor) || [220, 20, 40]);
+    }
+  }
+
+  function pillAboveChar(idx) {
+    if (idx <= 1) return 0;       // Inputs
+    if (idx <= 3) return 1;       // Wi-Fi
+    return 2;                    // Settings
+  }
+
+  function selectCharacter(idx) {
+    if (isLaunchingChar) return;
+    var c = characters[idx];
+    if (!c) return;
+    isLaunchingChar = true;
+
+    var el = charItems[idx];
+    if (el) el.classList.add('launching');
+    document.body.classList.add('char-launching');
+
+    setTimeout(function () {
+      launchCharacterApp(c);
+      setTimeout(function () {
+        if (el) el.classList.remove('launching');
+        document.body.classList.remove('char-launching');
+        isLaunchingChar = false;
+      }, 1200);
+    }, 420);
+  }
+
+  function launchCharacterApp(c) {
+    var params = {};
+    if (c.deepLink) {
+      if (c.platform === 'netflix' && c.deepLink.contentId) {
+        params = { query: 'source_type=12&dial_type=app&media_id=' + c.deepLink.contentId };
+      } else if (c.platform === 'amazon' && c.deepLink.asin) {
+        params = { asin: c.deepLink.asin };
+      }
+    }
+    toast('Opening ' + c.platformName + '  ·  ' + c.title);
+    launch(c.platform, c.platformName + ' (' + c.title + ')', params);
   }
 
   function animateIn() {
@@ -406,9 +562,19 @@
     if (zone === 'top') pills[pillFocus].classList.remove('focused');
     if (zone === 'grid') {
       if (items[focused]) items[focused].el.classList.remove('focused');
+      hideHero();
       hideGlass();
     }
+    if (zone === 'characters') {
+      charItems.forEach(function (el) { el.classList.remove('focused'); });
+      document.body.classList.remove('in-characters');
+    }
     zone = z;
+    if (zone === 'characters') {
+      document.body.classList.add('in-characters');
+      hideGlass();
+      hideHero();
+    }
   }
 
   /** The pill straight above a dock tile, by horizontal distance. */
@@ -574,16 +740,44 @@
     } else if (zone === 'top') {
       if (k === KEY.LEFT) focusPill(pillFocus - 1);
       else if (k === KEY.RIGHT) focusPill(pillFocus + 1);
-      else if (k === KEY.DOWN) focusTile(rowOf(focused) === 0 ? focused : 0);
+      else if (k === KEY.DOWN) {
+        if (characters.length && window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.enabled) {
+          focusCharacter(charFocus);
+        } else {
+          focusTile(rowOf(focused) === 0 ? focused : 0);
+        }
+      }
       else if (k === KEY.OK) activatePill(pillFocus);
       else if (k === KEY.BACK) { /* home screen: Back goes nowhere */ }
       else return;
+    } else if (zone === 'characters') {
+      if (k === KEY.LEFT) {
+        if (charFocus > 0) focusCharacter(charFocus - 1);
+      } else if (k === KEY.RIGHT) {
+        if (charFocus < characters.length - 1) focusCharacter(charFocus + 1);
+      } else if (k === KEY.UP) {
+        focusPill(pillAboveChar(charFocus));
+      } else if (k === KEY.DOWN) {
+        var targetTile = Math.min(items.length - 1, Math.min(3, Math.floor(charFocus * 4 / 5)));
+        focusTile(targetTile);
+      } else if (k === KEY.OK) {
+        selectCharacter(charFocus);
+      } else if (k === KEY.BACK || k === KEY.ESC) {
+        focusTile(0);
+      } else return;
     } else {
       var col = focused % COLUMNS, last = items.length - 1;
       if (k === KEY.LEFT) { if (col > 0) focusTile(focused - 1); }
       else if (k === KEY.RIGHT) { if (col < COLUMNS - 1 && focused < last) focusTile(focused + 1); }
       else if (k === KEY.UP) {
-        if (rowOf(focused) === 0) focusPill(pillAbove(focused));
+        if (rowOf(focused) === 0) {
+          if (characters.length && window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.enabled) {
+            var targetChar = Math.min(characters.length - 1, Math.floor(focused * 5 / 4));
+            focusCharacter(targetChar);
+          } else {
+            focusPill(pillAbove(focused));
+          }
+        }
         else focusTile(focused - COLUMNS);
       } else if (k === KEY.DOWN) {
         if (rowOf(focused) < rowOf(last)) focusTile(Math.min(focused + COLUMNS, last));
@@ -608,6 +802,9 @@
     updateClock();
     if (zone === 'inputs') panel.classList.add('hidden');
     pills.forEach(function (p) { p.classList.remove('focused'); });
+    isLaunchingChar = false;
+    document.body.classList.remove('char-launching');
+    charItems.forEach(function (el) { el.classList.remove('launching'); });
     zone = 'none';
     animateIn();
     focusTile(focused);
