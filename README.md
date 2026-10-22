@@ -1,4 +1,14 @@
-# webos-vibehack
+# webos_vibehack_Qned
+
+Cinematic home screen for LG webOS TVs, version **1.2.0**. A five-character showcase opens into a crimson app dashboard, with remote and pointer navigation, local title artwork, and synchronized TV applications.
+
+![Cinematic character showcase](docs/redesign/01-showcase.png)
+
+See the [redesign and deployment report](docs/REDESIGN-REPORT.md), [screenshot gallery](docs/redesign/index.html), and [browser validation results](docs/redesign/validation.json). Version 1.2.0 was installed and launched on the LG QNED TV; detailed hardware interaction testing remains outstanding.
+
+Pairing credentials, generated TV app inventories/icons, build packages, and local test dependencies are excluded from Git. Run the installer to synchronize your own TV's apps. Windows users can validate prerequisites with `powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun` and install with `-TvHost <TV_IP>` after pairing.
+
+## Original project and setup
 
 An Apple TV-style home screen for LG TVs. It's a webOS port of the launcher from
 [tv-vibehack](https://github.com/Gathin23/tv-vibehack), which does the same for Android TVs.
@@ -47,8 +57,8 @@ npx -y -p @webos-tools/cli ares-setup-device -m lgtv -i "{'privatekey':'lgtv_web
 **3. Install**
 
 ```bash
-git clone https://github.com/OmkarK97/webos-vibehack.git
-cd webos-vibehack
+git clone https://github.com/abhinavpanchagni/webos_vibehack_Qned.git
+cd webos_vibehack_Qned
 python3 -m venv venv && venv/bin/pip install websockets
 TV_HOST=192.168.1.50 ./install.sh
 ```
