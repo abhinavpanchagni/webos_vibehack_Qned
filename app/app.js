@@ -1,21 +1,18 @@
 /*
- * tvOS style home for webOS: black, a pinned dock row, an app grid, and one glass highlight that
- * springs between tiles. A port of the Android launcher in ../../launcher.
+ * Cinematic home for webOS: a character showcase and a separate floating app dashboard.
  *
  * webOS does not let third-party apps list installed apps, so sync-apps.py writes them into apps.js.
  */
 (function () {
   'use strict';
 
-  var COLUMNS = Math.max(1, CONFIG.columns || 4);
-  var TILE_W = 340, TILE_H = 200;   // neat 16:9 floating cards
+  var COLUMNS = Math.max(1, Math.min(6, Math.floor(Number(CONFIG.columns) || 4)));
+  var TILE_W = Math.min(340, Math.floor((1528 - (COLUMNS - 1) * 56) / COLUMNS)), TILE_H = 200;   // neat 16:9 floating cards
   var GAP_X = 56;                // neat, consistent gap between cards
   var ROW_PITCH = 280;           // vertical spacing between grid rows
-  var DOCK_TOP = 718;            // tile top of the dock row
-  var DOCK_GAP = 36;
-  var FOCUS_SCALE = 1.10;
-  var GLASS_PAD = 12;            // room around the scaled tile for the glass ring
-  var VIEW_TOP = 80, VIEW_BOTTOM = 1060;
+  var DOCK_TOP = 365;            // tile top of the dock row
+  var DOCK_GAP = 16;
+  var VIEW_TOP = 335, VIEW_BOTTOM = 925;
 
   var TOTAL_ROW_W = COLUMNS * TILE_W + (COLUMNS - 1) * GAP_X;
   var ROW_START_X = Math.round((1920 - TOTAL_ROW_W) / 2);
@@ -31,22 +28,81 @@
   var ICON_LIVETV = 'M21,6h-7.59l3.29,-3.29L16,2l-4,4l-4,-4l-0.71,0.71L10.59,6H3c-1.1,0 -2,0.89 -2,2v12c0,1.1 0.9,2 2,2h18c1.1,0 2,-0.89 2,-2V8C23,6.89 22.1,6 21,6zM21,20H3V8h18V20zM9,10v8l7,-4L9,10z';
 
   var $ = function (id) { return document.getElementById(id); };
-  var stage = $('stage'), tilesEl = $('tiles'), glass = $('glass'), hero = $('hero');
-  var ambients = [$('ambientA'), $('ambientB')], ambientFront = 0, ambientColor = null;
+  var stage = $('stage'), tilesEl = $('tiles');
   var pills = [$('btnInputs'), $('btnWifi'), $('btnSettings')];
   var panel = $('inputsPanel');
 
   var items = [];               // {app, el, color}
-  var zone = 'grid';            // 'grid' | 'characters' | 'top' | 'inputs'
+  var zone = 'none';            // 'grid' | 'characters' | 'top' | 'inputs'
   var focused = 0, pillFocus = 0, inputFocus = 0, inputRows = [];
-  var offset = 0, heroShown = false, glassShown = false;
+  var offset = 0;
   var editing = null;           // {item, snapshot} while a tile is being moved
-  var hasResumed = false;       // true after first resume — reduces stagger on return
 
-  var characters = (window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.characters) || [];
+  var characters = (window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.enabled && CHARACTERS_CONFIG.characters) || [];
   var charItems = [];
   var charFocus = 0;
   var isLaunchingChar = false;
+  var charHasFocus = false, screen = 'characters', screenUntil = 0;
+  var launchTimer = null, launchResetTimer = null, launchingTile = null;
+  var inputMode = 'remote', canvasScale = 1;
+  var pointerX = null, pointerY = null, pointerMoved = false;
+  // Layout changes can synthesize mouse events at an unchanged cursor position.
+  // Only a real coordinate change may take control away from directional input.
+  document.addEventListener('mousemove', function (e) {
+    pointerMoved = e.clientX !== pointerX || e.clientY !== pointerY;
+    pointerX = e.clientX; pointerY = e.clientY;
+  }, true);
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function motionDuration(ms) { return reducedMotion.matches ? 0 : ms; }
+
+  function fitCanvas() {
+    canvasScale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    var shell = $('shell');
+    shell.style.transform = 'scale(' + canvasScale + ')';
+    shell.style.left = ((window.innerWidth - 1920 * canvasScale) / 2) + 'px';
+    shell.style.top = ((window.innerHeight - 1080 * canvasScale) / 2) + 'px';
+  }
+  window.addEventListener('resize', fitCanvas);
+  fitCanvas();
+  document.documentElement.style.setProperty('--tile-w', TILE_W + 'px');
+
+  function cancelOk() { clearTimeout(okTimer); okTimer = null; okDown = false; }
+  function resetLaunch() {
+    clearTimeout(launchTimer); clearTimeout(launchResetTimer);
+    launchTimer = launchResetTimer = null;
+    isLaunchingChar = false;
+    document.body.classList.remove('char-launching');
+    charItems.forEach(function (el) { el.classList.remove('launching'); });
+    if (launchingTile) launchingTile.el.classList.remove('launching');
+    launchingTile = null;
+  }
+
+  function showScreen(next) {
+    if (next === screen || editing || isLaunchingChar || launchingTile) return;
+    if (next === 'characters' && !characters.length) return;
+    cancelOk();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    panel.classList.add('hidden');
+    setZone('none');
+    screen = next;
+    screenUntil = Date.now() + motionDuration(650);
+    document.body.classList.toggle('apps-screen', next === 'apps');
+    $('dashboard').setAttribute('aria-hidden', next !== 'apps');
+    $('characterGallery').setAttribute('aria-hidden', next !== 'characters');
+    if (next === 'apps') {
+      if (items.length) focusTile(focused); else focusPill(0);
+    } else if (charHasFocus) focusCharacter(charFocus);
+    else setZone('characters');
+    updateTabStops();
+  }
+
+  function updateTabStops() {
+    document.querySelectorAll('.char-hit').forEach(function (el) { el.tabIndex = screen === 'characters' ? 0 : -1; });
+    $('showApps').tabIndex = screen === 'characters' ? 0 : -1;
+    $('showCharacters').tabIndex = screen === 'apps' && characters.length ? 0 : -1;
+    pills.forEach(function (el) { el.tabIndex = screen === 'apps' ? 0 : -1; });
+    items.forEach(function (it, i) { it.el.tabIndex = screen === 'apps' && i === focused ? 0 : -1; });
+  }
 
   // ---- luna bus ------------------------------------------------------------------------------
 
@@ -117,7 +173,7 @@
   function loadOrder() {
     try {
       var s = JSON.parse(localStorage.getItem(ORDER_KEY));
-      return s && s.dock === (CONFIG.dockApps || []).join(',') ? s.ids : null;
+      return s && Array.isArray(s.ids) && s.dock === (CONFIG.dockApps || []).join(',') ? s.ids : null;
     } catch (e) {
       return null;
     }
@@ -141,11 +197,17 @@
     items = orderedApps().map(function (app) {
       var el = document.createElement('div');
       el.className = 'item';
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', app.title);
+      el.tabIndex = -1;
+      el.dataset.appId = app.id;
       var card = document.createElement('div');
       card.className = 'card';
       var img = document.createElement('img');
       var item = { app: app, el: el, card: card, color: null };
       img.onload = function () { paintTile(item, img); };
+      img.alt = '';
+      img.onerror = function () { img.hidden = true; el.classList.add('icon-missing'); };
       img.src = app.icon;
       card.appendChild(img);
       el.appendChild(card);
@@ -153,17 +215,23 @@
       name.className = 'name';
       name.textContent = app.title;
       el.appendChild(name);
-      el.addEventListener('mouseover', function () {
-        if (zone !== 'inputs' && !editing) focusTile(items.indexOf(item));
+      el.addEventListener('mousemove', function () {
+        if (!pointerMoved) return;
+        inputMode = 'pointer';
+        if (screen === 'apps' && zone !== 'inputs' && !editing && !launchingTile) focusTile(items.indexOf(item));
       });
+      el.addEventListener('focus', function () { if (screen === 'apps' && !editing && zone !== 'inputs') focusTile(items.indexOf(item)); });
       el.addEventListener('click', function () {
+        if (screen !== 'apps' || zone === 'inputs') return;
         if (editing) finishEdit(true);
-        else launch(app.id, app.title);
+        else { focusTile(items.indexOf(item)); selectTile(); }
       });
       tilesEl.appendChild(el);
       return item;
     });
     layout();
+    $('appCount').textContent = String(items.length).padStart(2, '0');
+    $('emptyApps').hidden = items.length > 0;
     buildCharacters();
   }
 
@@ -182,138 +250,86 @@
   // ---- favourite characters gallery ----------------------------------------------------------
 
   function buildCharacters() {
-    var stage = $('characterStage');
-    if (!stage) return;
-    stage.innerHTML = '';
-    charItems = [];
-    if (!window.CHARACTERS_CONFIG || !CHARACTERS_CONFIG.enabled || !characters.length) {
-      var gal = $('characterGallery');
-      if (gal) gal.style.display = 'none';
-      return;
-    }
-
+    var characterStage = $('characterStage'), targets = $('characterTargets');
+    characterStage.innerHTML = ''; targets.innerHTML = ''; charItems = [];
     characters.forEach(function (c, idx) {
-      var item = document.createElement('div');
-      item.className = 'char-item';
-      item.dataset.id = c.id;
-
-      // 1. OTT Brand Badge
-      var badgeWrap = document.createElement('div');
-      badgeWrap.className = 'char-badge-wrap';
-      var badge = document.createElement('div');
-      badge.className = 'ott-badge ' + (c.badgeType || 'netflix');
-
-      if (c.badgeType === 'amazon') {
-        badge.innerHTML =
-          '<svg viewBox="0 0 24 24"><path fill="#00A8E1" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>' +
-          '<span>Prime Video</span>';
-      } else {
-        badge.innerHTML =
-          '<svg viewBox="0 0 24 24"><path fill="#E50914" d="M4 2v20h3.5v-8.5l9 8.5H20V2h-3.5v8.5L7.5 2z"/></svg>' +
-          '<span>Netflix</span>';
-      }
-      badgeWrap.appendChild(badge);
-      item.appendChild(badgeWrap);
-
-      // 2. Ambient Glow behind character
-      var glow = document.createElement('div');
-      glow.className = 'char-glow';
-      if (c.glowGradient) glow.style.background = c.glowGradient;
-      item.appendChild(glow);
-
-      // 3. Cutout figure wrapper
-      var cutoutWrap = document.createElement('div');
-      cutoutWrap.className = 'char-cutout-wrap';
-      var img = document.createElement('img');
-      img.className = 'char-img';
-      img.src = c.image;
-      img.alt = c.character;
-      img.loading = 'eager';
-      cutoutWrap.appendChild(img);
-
-      var bottomFade = document.createElement('div');
-      bottomFade.className = 'char-bottom-fade';
-      cutoutWrap.appendChild(bottomFade);
-      item.appendChild(cutoutWrap);
-
-      // 4. Character info banner
-      var info = document.createElement('div');
-      info.className = 'char-info';
-
-      var nameEl = document.createElement('div');
-      nameEl.className = 'char-name';
-      nameEl.textContent = c.character;
-      info.appendChild(nameEl);
-
-      var metaEl = document.createElement('div');
-      metaEl.className = 'char-meta';
-      metaEl.innerHTML =
-        '<span class="char-title">' + c.title + '</span>' +
-        '<span class="char-dot">•</span>' +
-        '<span class="char-category">' + (c.category || c.platformName) + '</span>';
-      info.appendChild(metaEl);
-
-      item.appendChild(info);
-
-      // Mouse / pointer listeners for LG Magic Remote
-      item.addEventListener('mouseover', function () {
-        if (!isLaunchingChar && zone !== 'inputs' && !editing) {
-          focusCharacter(idx);
-        }
+      var item = document.createElement('div'), g = c.composition;
+      item.className = 'char-item'; item.dataset.id = c.id;
+      item.style.setProperty('--left', g.left + 'px');
+      item.style.setProperty('--width', g.width + 'px');
+      item.style.setProperty('--top', g.top + 'px');
+      item.style.setProperty('--height', g.height + 'px');
+      item.style.setProperty('--layer', g.layer);
+      item.style.setProperty('--label-x', g.labelX + 'px');
+      item.style.setProperty('--delay', (150 + idx * 22) + 'ms');
+      item.style.setProperty('--accent', c.accentColor);
+      item.style.setProperty('--glow', c.glowColor);
+      var figure = document.createElement('div'); figure.className = 'char-figure';
+      var aura = document.createElement('div'); aura.className = 'char-aura'; figure.appendChild(aura);
+      var wrap = document.createElement('div'); wrap.className = 'char-cutout-wrap';
+      ['char-bloom','char-img'].forEach(function (className) {
+        var img = document.createElement('img'); img.className = className;
+        img.src = c.image; img.alt = ''; img.draggable = false;
+        wrap.appendChild(img);
       });
-
-      item.addEventListener('click', function (e) {
-        e.stopPropagation();
-        if (!isLaunchingChar && !editing) {
-          selectCharacter(idx);
-        }
-      });
-
-      stage.appendChild(item);
-      charItems.push(item);
+      figure.appendChild(wrap); item.appendChild(figure);
+      var brand = document.createElement('img'); brand.className = 'char-brand';
+      brand.src = c.platformLogo; brand.alt = c.platformName; item.appendChild(brand);
+      var titleWrap = document.createElement('div'); titleWrap.className = 'char-title-wrap';
+      var title = document.createElement('img'); title.className = 'char-title'; title.alt = c.title;
+      title.onerror = function () {
+        title.hidden = true;
+        var fallback = document.createElement('span'); fallback.className = 'char-title-fallback';
+        fallback.textContent = c.title; titleWrap.appendChild(fallback);
+        titleWrap.dataset.missingLogo = c.id;
+        console.warn('Missing title logo: ' + c.logo);
+      };
+      title.src = c.logo; titleWrap.appendChild(title); item.appendChild(titleWrap);
+      characterStage.appendChild(item); charItems.push(item);
+      // Fixed, non-overlapping hit regions sit independently of the animated artwork.
+      var hit = document.createElement('button'); hit.type = 'button'; hit.className = 'char-hit'; hit.dataset.id = c.id;
+      hit.style.left = g.hitLeft + 'px'; hit.style.width = g.hitWidth + 'px';
+      hit.setAttribute('aria-label', c.character + ' — ' + c.title + '. Open ' + c.platformName);
+      hit.addEventListener('mousemove', function () { if (pointerMoved) { inputMode = 'pointer'; focusCharacter(idx); } });
+      hit.addEventListener('mouseleave', function () { if (inputMode === 'pointer' && !isLaunchingChar) clearCharacterFocus(); });
+      hit.addEventListener('focus', function () { focusCharacter(idx); });
+      hit.addEventListener('click', function () { if (screen === 'characters') { focusCharacter(idx); selectCharacter(idx); } });
+      targets.appendChild(hit);
     });
+  }
+
+  function clearCharacterFocus() {
+    charItems.forEach(function (el) { el.classList.remove('focused'); });
+    document.body.classList.remove('in-characters');
   }
 
   function focusCharacter(idx) {
-    if (!characters.length) return;
-    idx = Math.max(0, Math.min(idx, characters.length - 1));
-    charFocus = idx;
-    setZone('characters');
-
-    charItems.forEach(function (el, i) {
-      el.classList.toggle('focused', i === idx);
-    });
-
-    var c = characters[idx];
-    if (c) {
-      setAmbient(parseColor(c.glowColor) || [220, 20, 40]);
-    }
-  }
-
-  function pillAboveChar(idx) {
-    if (idx <= 1) return 0;       // Inputs
-    if (idx <= 3) return 1;       // Wi-Fi
-    return 2;                    // Settings
+    if (screen !== 'characters' || !characters.length || isLaunchingChar) return;
+    charFocus = Math.max(0, Math.min(idx, characters.length - 1));
+    charHasFocus = true; setZone('characters');
+    document.body.classList.add('in-characters');
+    charItems.forEach(function (el, i) { el.classList.toggle('focused', i === charFocus); });
   }
 
   function selectCharacter(idx) {
-    if (isLaunchingChar) return;
-    var c = characters[idx];
-    if (!c) return;
-    isLaunchingChar = true;
+    if (isLaunchingChar || screen !== 'characters') return;
+    var c = characters[idx]; if (!c) return;
+    focusCharacter(idx); isLaunchingChar = true;
+    charItems[idx].classList.add('launching'); document.body.classList.add('char-launching');
+    launchTimer = setTimeout(function () {
+      launchTimer = null; launchCharacterApp(c);
+      launchResetTimer = setTimeout(resetLaunch, 900);
+    }, motionDuration(260));
+  }
 
-    var el = charItems[idx];
-    if (el) el.classList.add('launching');
-    document.body.classList.add('char-launching');
-
-    setTimeout(function () {
-      launchCharacterApp(c);
-      setTimeout(function () {
-        if (el) el.classList.remove('launching');
-        document.body.classList.remove('char-launching');
-        isLaunchingChar = false;
-      }, 1200);
-    }, 420);
+  function selectTile() {
+    if (launchingTile || screen !== 'apps' || !items[focused]) return;
+    launchingTile = items[focused]; launchingTile.el.classList.add('launching');
+    launchTimer = setTimeout(function () {
+      launchTimer = null;
+      launch(launchingTile.app.id, launchingTile.app.title);
+      launchResetTimer = setTimeout(resetLaunch, 900);
+    }, motionDuration(180));
   }
 
   function launchCharacterApp(c) {
@@ -325,76 +341,29 @@
         params = { asin: c.deepLink.asin };
       }
     }
-    toast('Opening ' + c.platformName + '  ·  ' + c.title);
+    toast('Opening ' + c.platformName);
     launch(c.platform, c.platformName + ' (' + c.title + ')', params);
   }
 
   function animateIn() {
-    // Initial open: generous stagger for a cinematic entrance.
-    // Resume (returning from an app): faster stagger so it feels snappy.
-    var delay  = hasResumed ? 28 : 56;
-    var step   = hasResumed ? 22 : 36;
-    var maxIdx = hasResumed ?  8 : 14;
-    items.forEach(function (it, i) {
-      it.el.classList.remove('shown');
-      setTimeout(function () { it.el.classList.add('shown'); }, delay + Math.min(i, maxIdx) * step);
-    });
+    items.forEach(function (it) { it.el.classList.add('shown'); });
   }
 
-  /**
-   * Store icons are square logos on a solid colour: fill the wide tile with that colour so the logo
-   * reads as a banner. LG's system icons are glyphs on transparent: use the app's own colour.
-   */
+  /** Sample each original icon once for the glass reflection; keep its artwork intact. */
   function paintTile(item, img) {
-    var px = null, edge = null;
+    var px = null;
     try {
       var c = document.createElement('canvas');
       c.width = 12; c.height = 12;
       var g = c.getContext('2d');
       g.drawImage(img, 0, 0, 12, 12);
       px = g.getImageData(0, 0, 12, 12).data;
-      edge = edgeColor(img);
     } catch (e) { /* tainted canvas: fall back to the app's colour */ }
 
-    var glyphColor = null;
-    if (edge && edge[3] > 200) {
-      item.card.style.background = 'rgb(' + edge[0] + ',' + edge[1] + ',' + edge[2] + ')';
-    } else {
-      item.card.classList.add('glyph');
-      var c = parseColor(item.app.iconColor);
-      if (c) {
-        item.card.style.background = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ', 0.35)';
-        glyphColor = c;
-      } else {
-        item.card.style.background = 'rgba(255, 255, 255, 0.14)';
-      }
-    }
-    // A white glyph says nothing about the app: glow in the tile's colour instead.
-    item.color = glyphColor || (px ? vividColor(px) : parseColor(item.app.iconColor));
-    if (items[focused] === item) setAmbient(item.color);
+    item.color = px ? vividColor(px) : parseColor(item.app.iconColor);
+    if (item.color) item.card.style.setProperty('--reflection', item.color.join(','));
   }
 
-  /**
-   * The icon's background at full size: a corner pixel, or the middle of the left edge for rounded
-   * icons whose corners are transparent. A downscaled sample would blend in the logo.
-   */
-  function edgeColor(img) {
-    var w = img.naturalWidth, h = img.naturalHeight;
-    var c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    var g = c.getContext('2d');
-    g.drawImage(img, 0, 0);
-    var corner = g.getImageData(2, 2, 1, 1).data;
-    return corner[3] > 200 ? corner : g.getImageData(2, Math.floor(h / 2), 1, 1).data;
-  }
-
-  function glyphBackground(hex) {
-    var c = parseColor(hex);
-    if (!c) return '#2c2c2e';
-    var hsv = rgbToHsv(c);
-    if (hsv[1] < 0.15 && (hsv[2] > 0.85 || hsv[2] < 0.1)) return '#2c2c2e';   // white or black glyph colour
-    return 'rgb(' + c.join(',') + ')';
-  }
 
   /** A vivid colour from the icon: the most saturated, not too dark pixel, or the lifted average. */
   function vividColor(px) {
@@ -454,104 +423,25 @@
   // ---- focus & glass -------------------------------------------------------------------------
 
   function focusTile(i) {
-    if (!items.length) return;
+    if (!items.length || screen !== 'apps') return;
     i = Math.max(0, Math.min(i, items.length - 1));
     setZone('grid');
     if (items[focused]) items[focused].el.classList.remove('focused');
-    focused = i;
-    items[i].el.classList.add('focused');
-
-    var top = tileTop(i), row = rowOf(i);
-    if (row === 0) {
-      offset = 0;
-    } else {
-      // Scroll just enough so the whole glass and the name below the tile are visible.
+    focused = i; items[i].el.classList.add('focused');
+    var top = tileTop(i);
+    if (rowOf(i) === 0) offset = 0;
+    else {
       if (top - offset + TILE_H + 70 > VIEW_BOTTOM) offset = top + TILE_H + 70 - VIEW_BOTTOM;
       if (top - offset - 24 < VIEW_TOP) offset = top - 24 - VIEW_TOP;
     }
     stage.style.transform = 'translateY(' + (-offset) + 'px)';
-    // Keep the header until the content (the dock band is topmost) would run into it.
-    var header = document.querySelector('header');
-    var headerBottom = header.offsetTop + header.offsetHeight;   // layout box: ignores the hide slide
-    document.body.classList.toggle('scrolled', DOCK_TOP - 28 - offset < headerBottom + 24);
-
-    var w = TILE_W * FOCUS_SCALE + 2 * GLASS_PAD, h = TILE_H * FOCUS_SCALE + 2 * GLASS_PAD;
-    var x = tileLeft(i) + TILE_W / 2 - w / 2, y = top + TILE_H / 2 - h / 2;
-    glass.style.width = w + 'px';
-    glass.style.height = h + 'px';
-    glass.style.transform = 'translate(' + x + 'px,' + y + 'px)';
-    if (!glassShown) {
-      // First show: jump there without the spring, then fade in.
-      glass.style.transition = 'none';
-      glass.offsetWidth;   // flush the jump before restoring the transition
-      glass.style.transition = '';
-      glass.style.opacity = '1';
-      glassShown = true;
-    }
-
-    if (row === 0) showHero(items[i]);
-    else hideHero();
-    setAmbient(items[i].color);   // the glow follows the focused tile in every row
-  }
-
-  function hideGlass() {
-    glassShown = false;
-    glass.style.opacity = '0';
-  }
-
-  function showHero(item) {
-    var label = item.app.title;
-    hero.style.top = (DOCK_TOP - 78) + 'px';   // sits cleanly right above the floating dock row
-    hero.style.left = tileLeft(0) + 'px';
-    if (!heroShown) {
-      hero.textContent = label;
-      hero.style.transform = 'translateY(0)';
-      hero.style.opacity = '1';
-      heroShown = true;
-    } else if (hero.textContent !== label) {
-      hero.style.opacity = '0';
-      hero.style.transform = 'translateY(-8px)';
-      clearTimeout(hero.swap);
-      hero.swap = setTimeout(function () {
-        hero.textContent = label;
-        hero.style.transition = 'none';
-        hero.style.transform = 'translateY(8px)';
-        hero.offsetWidth;
-        hero.style.transition = '';
-        hero.style.transform = 'translateY(0)';
-        hero.style.opacity = '1';
-      }, 110);
-    }
-    setAmbient(item.color);
-  }
-
-  function hideHero() {
-    if (!heroShown) return;
-    heroShown = false;
-    hero.style.opacity = '0';
-  }
-
-  /** Crossfades the glow to a new colour by swapping between two layers. */
-  function setAmbient(color) {
-    if (!color) return;
-    var key = color.join(',');
-    if (key === ambientColor) return;
-    ambientColor = key;
-    var back = ambients[1 - ambientFront];
-    // Glow emanates from behind the dock (bottom-centre) and spills upward.
-    back.style.background =
-      'radial-gradient(ellipse 1400px 860px at 50% 92%, ' +
-        'rgba(' + key + ',0.30) 0%, ' +
-        'rgba(' + key + ',0.11) 52%, ' +
-        'rgba(' + key + ',0.00) 100%)';
-    back.style.opacity = '1';
-    ambients[ambientFront].style.opacity = '0';
-    ambientFront = 1 - ambientFront;
+    $('appPosition').textContent = (focused + 1) + ' / ' + items.length;
+    updateTabStops();
   }
 
   function focusPill(i) {
+    if (screen !== 'apps') return;
     setZone('top');
-    document.body.classList.remove('scrolled');
     pills[pillFocus].classList.remove('focused');
     pillFocus = Math.max(0, Math.min(i, pills.length - 1));
     pills[pillFocus].classList.add('focused');
@@ -560,33 +450,11 @@
   function setZone(z) {
     if (zone === z) return;
     if (zone === 'top') pills[pillFocus].classList.remove('focused');
-    if (zone === 'grid') {
-      if (items[focused]) items[focused].el.classList.remove('focused');
-      hideHero();
-      hideGlass();
-    }
-    if (zone === 'characters') {
-      charItems.forEach(function (el) { el.classList.remove('focused'); });
-      document.body.classList.remove('in-characters');
-    }
+    if (zone === 'grid' && items[focused]) items[focused].el.classList.remove('focused');
+    if (zone === 'characters') clearCharacterFocus();
     zone = z;
-    if (zone === 'characters') {
-      document.body.classList.add('in-characters');
-      hideGlass();
-      hideHero();
-    }
   }
 
-  /** The pill straight above a dock tile, by horizontal distance. */
-  function pillAbove(i) {
-    var cx = tileLeft(i) + TILE_W / 2, best = 0, bestD = Infinity;
-    pills.forEach(function (p, k) {
-      var r = p.getBoundingClientRect();
-      var d = Math.abs(r.left + r.width / 2 - cx);
-      if (d < bestD) { bestD = d; best = k; }
-    });
-    return best;
-  }
 
   // ---- top bar -------------------------------------------------------------------------------
 
@@ -634,18 +502,20 @@
 
     // Hang right below the Inputs pill, at least as wide as it.
     var r = pills[0].getBoundingClientRect();
-    panel.style.left = r.left + 'px';
-    panel.style.top = (r.bottom + 20) + 'px';
-    panel.style.minWidth = Math.max(r.width, 300) + 'px';
+    var shellRect = $('shell').getBoundingClientRect();
+    panel.style.left = ((r.left - shellRect.left) / canvasScale) + 'px';
+    panel.style.top = ((r.bottom - shellRect.top) / canvasScale + 20) + 'px';
+    panel.style.minWidth = Math.max(r.width / canvasScale, 300) + 'px';
     panel.classList.remove('hidden');
     pills[pillFocus].classList.remove('focused');
-    zone = 'inputs';
+    setZone('inputs');
     focusInput(0);
   }
 
   function addInputRow(icon, label, appId) {
     var row = document.createElement('div');
     row.className = 'inputRow';
+    row.setAttribute('role', 'menuitem');
     row.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + icon + '"/></svg>';
     row.appendChild(document.createTextNode(label));
     var idx = inputRows.length;
@@ -671,7 +541,7 @@
 
   // ---- rearranging ---------------------------------------------------------------------------
 
-  /** Hold OK on a tile: it wiggles, the arrows move it, OK places it, Back puts everything back. */
+  /** Hold OK to lift a tile; arrows move it, OK places it, Back restores its position. */
   function startEdit() {
     var it = items[focused];
     if (!it) return;
@@ -711,18 +581,35 @@
   // On tiles OK acts on release, so a held OK can start rearranging instead of opening the app.
   document.addEventListener('keyup', function (e) {
     if (e.keyCode !== KEY.OK) return;
-    okDown = false;
+    e.preventDefault(); okDown = false;
     if (!okTimer) return;
-    clearTimeout(okTimer);
-    okTimer = null;
-    var it = items[focused];
-    if (zone === 'grid' && it && !editing) launch(it.app.id, it.app.title);
+    clearTimeout(okTimer); okTimer = null;
+    if (zone === 'grid' && !editing) selectTile();
   });
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
-    if (k === KEY.OK && okDown) { e.preventDefault(); return; }   // key repeat while held
+    if (k === 9) { // Tab is a desktop convenience; arrows remain the TV's primary input.
+      e.preventDefault();
+      if (editing || isLaunchingChar || launchingTile) return;
+      if (zone === 'inputs') { focusInput((inputFocus + (e.shiftKey ? inputRows.length - 1 : 1)) % inputRows.length); return; }
+      var nodes = Array.prototype.slice.call(document.querySelectorAll(screen === 'characters' ? '.char-hit, #showApps' : '#showCharacters, .pill, .item')).filter(function (el) { return !el.hidden; });
+      var index = nodes.indexOf(document.activeElement);
+      var next = nodes[(index + (e.shiftKey ? nodes.length - 1 : 1)) % nodes.length];
+      // Bring clipped app rows into view before asking the browser for DOM focus.
+      items.forEach(function (it, i) { if (it.el === next) focusTile(i); });
+      next.focus({ preventScroll:true });
+      return;
+    }
+    if ([KEY.LEFT,KEY.RIGHT,KEY.UP,KEY.DOWN,KEY.OK,KEY.BACK,KEY.ESC].indexOf(k) < 0) return;
+    e.preventDefault(); inputMode = 'remote';
+    if (k >= KEY.LEFT && k <= KEY.DOWN && document.activeElement.blur) document.activeElement.blur();
+    if (isLaunchingChar || launchingTile) { if (k === KEY.BACK || k === KEY.ESC) resetLaunch(); return; }
+    if (k === KEY.OK && okDown) return;
     if (k === KEY.OK) okDown = true;
+    if (k !== KEY.OK && okTimer) cancelOk();
+    // A held direction cannot cross a screen boundary and immediately scroll several rows.
+    if (Date.now() < screenUntil && e.repeat) return;
     if (editing) {
       if (k === KEY.LEFT) moveTo(focused - 1);
       else if (k === KEY.RIGHT) moveTo(focused + 1);
@@ -730,95 +617,93 @@
       else if (k === KEY.DOWN) moveTo(Math.min(focused + COLUMNS, items.length - 1));
       else if (k === KEY.OK) finishEdit(true);
       else if (k === KEY.BACK || k === KEY.ESC) finishEdit(false);
-      else return;
     } else if (zone === 'inputs') {
       if (k === KEY.UP) focusInput(inputFocus - 1);
       else if (k === KEY.DOWN) focusInput(inputFocus + 1);
       else if (k === KEY.OK) { var row = inputRows[inputFocus]; hideInputs(); launch(row.appId, row.label); }
       else if (k === KEY.BACK || k === KEY.ESC || k === KEY.LEFT || k === KEY.RIGHT) hideInputs();
-      else return;
+    } else if (screen === 'characters') {
+      if (k === KEY.LEFT) focusCharacter(charHasFocus ? charFocus - 1 : 0);
+      else if (k === KEY.RIGHT) focusCharacter(charHasFocus ? charFocus + 1 : 0);
+      else if (k === KEY.DOWN) showScreen('apps');
+      else if (k === KEY.OK) {
+        if (document.activeElement === $('showApps')) showScreen('apps');
+        else selectCharacter(charFocus);
+      }
+      // Back at the launcher's root stays home, matching the existing launcher.
+    } else if (k === KEY.OK && document.activeElement === $('showCharacters')) {
+      showScreen('characters');
     } else if (zone === 'top') {
       if (k === KEY.LEFT) focusPill(pillFocus - 1);
       else if (k === KEY.RIGHT) focusPill(pillFocus + 1);
-      else if (k === KEY.DOWN) {
-        if (characters.length && window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.enabled) {
-          focusCharacter(charFocus);
-        } else {
-          focusTile(rowOf(focused) === 0 ? focused : 0);
-        }
-      }
+      else if (k === KEY.DOWN) { if (items.length) focusTile(focused); }
+      else if (k === KEY.UP || k === KEY.BACK || k === KEY.ESC) showScreen('characters');
       else if (k === KEY.OK) activatePill(pillFocus);
-      else if (k === KEY.BACK) { /* home screen: Back goes nowhere */ }
-      else return;
-    } else if (zone === 'characters') {
-      if (k === KEY.LEFT) {
-        if (charFocus > 0) focusCharacter(charFocus - 1);
-      } else if (k === KEY.RIGHT) {
-        if (charFocus < characters.length - 1) focusCharacter(charFocus + 1);
-      } else if (k === KEY.UP) {
-        focusPill(pillAboveChar(charFocus));
-      } else if (k === KEY.DOWN) {
-        var targetTile = Math.min(items.length - 1, Math.min(3, Math.floor(charFocus * 4 / 5)));
-        focusTile(targetTile);
-      } else if (k === KEY.OK) {
-        selectCharacter(charFocus);
-      } else if (k === KEY.BACK || k === KEY.ESC) {
-        focusTile(0);
-      } else return;
     } else {
       var col = focused % COLUMNS, last = items.length - 1;
-      if (k === KEY.LEFT) { if (col > 0) focusTile(focused - 1); }
+      if (k === KEY.LEFT) { if (col > 0) focusTile(focused - 1); else focusPill(0); }
       else if (k === KEY.RIGHT) { if (col < COLUMNS - 1 && focused < last) focusTile(focused + 1); }
-      else if (k === KEY.UP) {
-        if (rowOf(focused) === 0) {
-          if (characters.length && window.CHARACTERS_CONFIG && CHARACTERS_CONFIG.enabled) {
-            var targetChar = Math.min(characters.length - 1, Math.floor(focused * 5 / 4));
-            focusCharacter(targetChar);
-          } else {
-            focusPill(pillAbove(focused));
-          }
-        }
-        else focusTile(focused - COLUMNS);
-      } else if (k === KEY.DOWN) {
-        if (rowOf(focused) < rowOf(last)) focusTile(Math.min(focused + COLUMNS, last));
-      } else if (k === KEY.OK) {
-        okTimer = setTimeout(function () { okTimer = null; startEdit(); }, LONG_PRESS_MS);
-      } else if (k === KEY.BACK) { /* home screen: Back goes nowhere */ }
-      else return;
+      else if (k === KEY.UP) { if (rowOf(focused) === 0) showScreen('characters'); else focusTile(focused - COLUMNS); }
+      else if (k === KEY.DOWN) { if (rowOf(focused) < rowOf(last)) focusTile(Math.min(focused + COLUMNS, last)); }
+      else if (k === KEY.OK && items.length) okTimer = setTimeout(function () { okTimer = null; startEdit(); }, LONG_PRESS_MS);
+      else if (k === KEY.BACK || k === KEY.ESC) showScreen('characters');
     }
-    e.preventDefault();
   });
 
   pills.forEach(function (p, i) {
-    p.addEventListener('mouseover', function () { if (zone !== 'inputs') focusPill(i); });
-    p.addEventListener('click', function () { activatePill(i); });
+    p.addEventListener('mousemove', function () { if (pointerMoved && screen === 'apps' && zone !== 'inputs' && !editing) focusPill(i); });
+    p.addEventListener('focus', function () { if (screen === 'apps' && zone !== 'inputs') focusPill(i); });
+    p.addEventListener('click', function () { if (screen === 'apps' && !editing) activatePill(i); });
   });
+  $('showApps').addEventListener('click', function () { showScreen('apps'); });
+  $('showCharacters').addEventListener('click', function () { showScreen('characters'); });
+  var wheelSum = 0, wheelLast = 0, wheelUntil = 0;
+  document.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var now = Date.now();
+    if (now < wheelUntil || now < screenUntil || editing || zone === 'inputs' || isLaunchingChar || launchingTile) return;
+    var delta = e.deltaY * (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? 1080 : 1);
+    if (now - wheelLast > 180 || wheelSum * delta < 0) wheelSum = 0;
+    wheelLast = now; wheelSum += delta;
+    if (Math.abs(wheelSum) < 35) return;
+    var down = wheelSum > 0; wheelSum = 0;
+    wheelUntil = now + 420;
+    if (screen === 'characters') { if (down) showScreen('apps'); }
+    else if (!down) showScreen('characters');
+    else if (items.length) focusTile(Math.min(focused + COLUMNS, items.length - 1));
+  }, { passive:false });
+
 
   // ---- lifecycle -----------------------------------------------------------------------------
 
-  /** Back from another app (or opened again from the shortcut): replay the entrance, keep the tile. */
+  /** Return from another app without losing the active screen or focused character/tile. */
   function resume() {
+    cancelOk(); resetLaunch();
+    clearTimeout(toastTimer); $('toast').classList.remove('shown');
     if (editing) finishEdit(false);
-    updateClock();
-    if (zone === 'inputs') panel.classList.add('hidden');
-    pills.forEach(function (p) { p.classList.remove('focused'); });
-    isLaunchingChar = false;
-    document.body.classList.remove('char-launching');
-    charItems.forEach(function (el) { el.classList.remove('launching'); });
-    zone = 'none';
-    animateIn();
-    focusTile(focused);
-    hasResumed = true;
+    updateClock(); panel.classList.add('hidden');
+    setZone('none');
+    if (screen === 'characters') {
+      if (charHasFocus) focusCharacter(charFocus); else setZone('characters');
+    } else if (items.length) focusTile(focused); else focusPill(0);
+    updateTabStops();
   }
 
+
   document.addEventListener('webOSRelaunch', resume);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) resume(); });
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) resume();
+    else { cancelOk(); resetLaunch(); }
+  });
+  window.addEventListener('blur', cancelOk);
 
   build();
   updateClock();
-  setInterval(updateClock, 10000);
+  setInterval(function () { if (!document.hidden) updateClock(); }, 30000);
   watchNetwork();
   animateIn();
-  zone = 'none';
-  focusTile(0);
+  zone = 'characters';
+  if (!characters.length) showScreen('apps');
+  $('showCharacters').hidden = !characters.length;
+  updateTabStops();
 })();

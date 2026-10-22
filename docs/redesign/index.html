@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cinema — redesign review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b080b;color:#eee8ec;font:16px/1.6 system-ui,sans-serif}main{max-width:1400px;margin:auto;padding:50px 28px}h1{font-weight:400;font-size:38px;letter-spacing:-1px;margin:0}p{color:#b2a4ae;max-width:880px}a{color:#f3bccd}nav{display:flex;gap:24px;margin:22px 0 44px;flex-wrap:wrap}.gallery{display:grid;grid-template-columns:1fr 1fr;gap:28px}figure{margin:0}img{display:block;width:100%;border:1px solid #33252d;border-radius:8px}figcaption{padding:9px 0;color:#b8a5af;font-size:14px}footer{border-top:1px solid #33252d;padding-top:26px;margin-top:40px;color:#b2a4ae}@media(max-width:850px){.gallery{grid-template-columns:1fr}}
+</style>
+<main>
+ <h1>Cinema, then everything else.</h1>
+ <p>The implemented launcher, captured at 1920 × 1080. Five original characters on black, followed by a crimson application dashboard. Click a screenshot to inspect it at full size.</p>
+ <nav><a href="../../app/index.html">Open the interactive launcher</a><a href="../REDESIGN-REPORT.md">Implementation report</a><a href="validation.json">Browser test results</a><a href="../../app/assets/ASSET-SOURCES.md">Artwork sources</a></nav>
+ <p>In the interactive launcher, use ← / → to explore, Enter to select, ↓ to open apps and ↑ from the first app row to return. The mouse and scroll wheel work too. Desktop browsers cannot launch TV applications; selecting one will report that it cannot open.</p>
+ <div class="gallery">
+  <figure><a href="01-showcase.png"><img src="01-showcase.png" alt="Initial showcase with all five character artworks on black"></a><figcaption>01 · Opening composition</figcaption></figure>
+  <figure><a href="02-steve.png"><img src="02-steve.png" alt="Steve Harrington focused with red lighting and Stranger Things logo"></a><figcaption>02 · Steve Harrington</figcaption></figure>
+  <figure><a href="03-rengoku.png"><img src="03-rengoku.png" alt="Kyojuro Rengoku focused with orange and gold lighting"></a><figcaption>03 · Kyojuro Rengoku</figcaption></figure>
+  <figure><a href="04-joe.png"><img src="04-joe.png" alt="Joe Goldberg focused with crimson lighting and YOU wordmark"></a><figcaption>04 · Joe Goldberg</figcaption></figure>
+  <figure><a href="05-benjamin.png"><img src="05-benjamin.png" alt="Benjamin Barry focused with champagne gold lighting"></a><figcaption>05 · Benjamin Barry</figcaption></figure>
+  <figure><a href="06-hannah.png"><img src="06-hannah.png" alt="Hannah Wells focused with magenta lighting and Off Campus logo"></a><figcaption>06 · Hannah Wells</figcaption></figure>
+  <figure><a href="07-dashboard.png"><img src="07-dashboard.png" alt="Crimson and black dashboard containing synchronized TV applications"></a><figcaption>07 · Application dashboard</figcaption></figure>
+  <figure><a href="08-app-focus.png"><img src="08-app-focus.png" alt="Prime Video application tile focused"></a><figcaption>08 · Application focus</figcaption></figure>
+ </div>
+ <footer>Local review only. No TV deployment has been performed. Browser tests use a simulated webOS service bridge; real app switching, Magic Remote hardware and TV frame pacing remain to be checked after deployment approval.</footer>
+</main>
+</html>

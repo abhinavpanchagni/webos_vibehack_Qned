@@ -1,102 +1,122 @@
-/**
- * Configuration for Cinematic Favourite Characters gallery.
- * Edit this file to add, modify, or rearrange favourite characters,
- * or to configure direct content-specific deep links once verified on LG webOS.
+/* Original artwork; positions use the 1920 × 1080 logical canvas.
+ * Configure deep links only after verification on the TV. Logo sources: assets/ASSET-SOURCES.md.
  */
 window.CHARACTERS_CONFIG = {
-  enabled: true,
-
-  // Character definitions in display order (left to right)
-  characters: [
+  "enabled": true,
+  "characters": [
     {
-      id: "steve",
-      character: "Steve Harrington",
-      title: "Stranger Things",
-      category: "Series",
-      platform: "netflix",
-      platformName: "Netflix",
-      badgeType: "netflix",
-      image: "assets/characters/steve.webp",
-      glowColor: "#E50914",
-      accentColor: "#FF3344",
-      glowGradient: "radial-gradient(ellipse at 50% 60%, rgba(229, 9, 20, 0.65) 0%, rgba(229, 9, 20, 0.22) 50%, rgba(0, 0, 0, 0) 75%)",
-      visualStyle: "electric",
-      // Content-specific deep-link configuration (separate from UI)
-      deepLink: {
-        contentId: null,       // e.g. "80057281" for Stranger Things once verified
-        query: null
+      "id": "steve",
+      "character": "Steve Harrington",
+      "title": "Stranger Things",
+      "platform": "netflix",
+      "platformName": "Netflix",
+      "image": "assets/characters/steve.webp",
+      "logo": "assets/titles/stranger-things.svg",
+      "platformLogo": "assets/platforms/netflix.svg",
+      "accentColor": "#FF183C",
+      "glowColor": "#FF183C",
+      "deepLink": null,
+      "composition": {
+        "left": -5,
+        "width": 560,
+        "top": 125,
+        "height": 900,
+        "layer": 3,
+        "labelX": 270,
+        "hitLeft": 60,
+        "hitWidth": 365
       }
     },
     {
-      id: "rengoku",
-      character: "Kyojuro Rengoku",
-      title: "Demon Slayer",
-      category: "Anime",
-      platform: "netflix",
-      platformName: "Netflix",
-      badgeType: "netflix",
-      image: "assets/characters/rengoku.webp",
-      glowColor: "#FF6B00",
-      accentColor: "#FFAE00",
-      glowGradient: "radial-gradient(ellipse at 50% 60%, rgba(255, 107, 0, 0.70) 0%, rgba(255, 174, 0, 0.28) 48%, rgba(0, 0, 0, 0) 75%)",
-      visualStyle: "flame",
-      deepLink: {
-        contentId: null,
-        query: null
+      "id": "rengoku",
+      "character": "Kyojuro Rengoku",
+      "title": "Demon Slayer",
+      "platform": "netflix",
+      "platformName": "Netflix",
+      "image": "assets/characters/rengoku.webp",
+      "logo": "assets/titles/demon-slayer.svg",
+      "platformLogo": "assets/platforms/netflix.svg",
+      "accentColor": "#FFC12B",
+      "glowColor": "#FF6500",
+      "deepLink": null,
+      "composition": {
+        "left": 310,
+        "width": 550,
+        "top": 120,
+        "height": 880,
+        "layer": 2,
+        "labelX": 300,
+        "hitLeft": 425,
+        "hitWidth": 340
       }
     },
     {
-      id: "joe",
-      character: "Joe Goldberg",
-      title: "YOU",
-      category: "Series",
-      platform: "netflix",
-      platformName: "Netflix",
-      badgeType: "netflix",
-      image: "assets/characters/joe.webp",
-      glowColor: "#8B0000",
-      accentColor: "#C41E3A",
-      glowGradient: "radial-gradient(ellipse at 50% 60%, rgba(139, 0, 0, 0.70) 0%, rgba(178, 34, 34, 0.25) 50%, rgba(0, 0, 0, 0) 75%)",
-      visualStyle: "crimson",
-      deepLink: {
-        contentId: null,
-        query: null
+      "id": "joe",
+      "character": "Joe Goldberg",
+      "title": "YOU",
+      "platform": "netflix",
+      "platformName": "Netflix",
+      "image": "assets/characters/joe.webp",
+      "logo": "assets/titles/you.png",
+      "platformLogo": "assets/platforms/netflix.svg",
+      "accentColor": "#FF264F",
+      "glowColor": "#D90032",
+      "deepLink": null,
+      "composition": {
+        "left": 650,
+        "width": 610,
+        "top": 130,
+        "height": 900,
+        "layer": 4,
+        "labelX": 300,
+        "hitLeft": 765,
+        "hitWidth": 355
       }
     },
     {
-      id: "benjamin",
-      character: "Benjamin & Andie",
-      title: "How to Lose a Guy in 10 Days",
-      category: "Movie",
-      platform: "netflix",
-      platformName: "Netflix",
-      badgeType: "netflix",
-      image: "assets/characters/benjamin.webp",
-      glowColor: "#D4AF37",
-      accentColor: "#E8C868",
-      glowGradient: "radial-gradient(ellipse at 50% 60%, rgba(212, 175, 55, 0.65) 0%, rgba(229, 193, 88, 0.24) 48%, rgba(0, 0, 0, 0) 75%)",
-      visualStyle: "gold",
-      deepLink: {
-        contentId: null,
-        query: null
+      "id": "benjamin",
+      "character": "Benjamin Barry",
+      "title": "How to Lose a Guy in 10 Days",
+      "platform": "netflix",
+      "platformName": "Netflix",
+      "image": "assets/characters/benjamin.webp",
+      "logo": "assets/titles/how-to-lose-a-guy.png",
+      "platformLogo": "assets/platforms/netflix.svg",
+      "accentColor": "#FFE59A",
+      "glowColor": "#F7C94C",
+      "deepLink": null,
+      "composition": {
+        "left": 1005,
+        "width": 620,
+        "top": 140,
+        "height": 880,
+        "layer": 2,
+        "labelX": 340,
+        "hitLeft": 1120,
+        "hitWidth": 395
       }
     },
     {
-      id: "hannah",
-      character: "Hannah & Garrett",
-      title: "Off Campus",
-      category: "Series (2026)",
-      platform: "amazon",
-      platformName: "Prime Video",
-      badgeType: "amazon",
-      image: "assets/characters/hannah.webp",
-      glowColor: "#C71585",
-      accentColor: "#E056B3",
-      glowGradient: "radial-gradient(ellipse at 50% 60%, rgba(199, 21, 133, 0.65) 0%, rgba(153, 50, 204, 0.25) 50%, rgba(0, 0, 0, 0) 75%)",
-      visualStyle: "rose",
-      deepLink: {
-        asin: null,
-        url: null
+      "id": "hannah",
+      "character": "Hannah Wells",
+      "title": "Off Campus",
+      "platform": "amazon",
+      "platformName": "Prime Video",
+      "image": "assets/characters/hannah.webp",
+      "logo": "assets/titles/off-campus.webp",
+      "platformLogo": "assets/platforms/primevideo.svg",
+      "accentColor": "#F032D4",
+      "glowColor": "#A44BFF",
+      "deepLink": null,
+      "composition": {
+        "left": 1360,
+        "width": 560,
+        "top": 100,
+        "height": 900,
+        "layer": 3,
+        "labelX": 290,
+        "hitLeft": 1515,
+        "hitWidth": 350
       }
     }
   ]

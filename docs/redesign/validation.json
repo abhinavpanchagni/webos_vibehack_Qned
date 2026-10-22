@@ -1,0 +1,20 @@
+{
+  "browser": "155.0.8059.86",
+  "viewport": "1920x1080",
+  "appCount": 34,
+  "checks": [
+    "Initial black showcase; five assets loaded; dashboard hidden; complete synchronized inventory",
+    "All five character mappings; one launch per held OK; no invented deep links; return focus restored",
+    "Non-overlapping pointer targets; clear focus on leave; pointer selection launches correct app",
+    "Interpolated screen transition; Prime Video and YouTube launch; dashboard focus survives resume",
+    "All synchronized apps reachable with directional navigation, including final partial row",
+    "Held OK edit, Back rollback, committed order survives reload with existing storage key",
+    "Inputs, network settings and general settings retain their launch requests",
+    "Wheel down/up, wheel burst debounce and both pointer transition controls",
+    "Launch failure feedback and cancellation before pending launch",
+    "Reduced motion; 4K and 720p scaling; input menu coordinate scaling",
+    "Empty synchronized inventory retains navigation and a truthful empty state",
+    "No uncaught browser errors"
+  ],
+  "tvTested": false
+}
